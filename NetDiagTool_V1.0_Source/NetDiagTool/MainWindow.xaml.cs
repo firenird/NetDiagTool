@@ -1,1 +1,0 @@
-using System.Windows; namespace NetDiagTool; public partial class MainWindow:Window{public MainWindow(){InitializeComponent();DataContext=new MainViewModel();}}
