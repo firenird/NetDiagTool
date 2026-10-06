@@ -1,2 +1,0 @@
-# NetDiagTool
-NetDiagTool
