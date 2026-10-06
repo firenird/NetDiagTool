@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "dgSpecHash": "kgL5LOYuTPc=",
+  "success": false,
+  "projectFilePath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+  "expectedPackageFiles": [],
+  "logs": [
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Microsoft.NET.ILLink.Tasks. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages",
+      "projectPath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "filePath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "libraryId": "Microsoft.NET.ILLink.Tasks",
+      "targetGraphs": [
+        "net8.0-windows",
+        "net8.0-windows/win-x64"
+      ]
+    },
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Microsoft.NETCore.App.Runtime.win-x64. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages",
+      "projectPath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "filePath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "libraryId": "Microsoft.NETCore.App.Runtime.win-x64",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Microsoft.WindowsDesktop.App.Runtime.win-x64. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages",
+      "projectPath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "filePath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "libraryId": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    },
+    {
+      "code": "NU1101",
+      "level": "Error",
+      "message": "Unable to find package Microsoft.AspNetCore.App.Runtime.win-x64. No packages exist with this id in source(s): Microsoft Visual Studio Offline Packages",
+      "projectPath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "filePath": "C:\\Users\\umahmed\\Downloads\\NetDiagTool_V1.0_Source\\NetDiagTool\\NetDiagTool.csproj",
+      "libraryId": "Microsoft.AspNetCore.App.Runtime.win-x64",
+      "targetGraphs": [
+        "net8.0-windows7.0"
+      ]
+    }
+  ]
+}

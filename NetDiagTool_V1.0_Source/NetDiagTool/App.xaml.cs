@@ -1,0 +1,1 @@
+using System.Windows; namespace NetDiagTool; public partial class App:Application{}
