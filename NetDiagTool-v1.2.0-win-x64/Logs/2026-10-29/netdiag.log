@@ -1,6 +1,0 @@
-﻿2026-10-29 12:24:51.624 [INFO] System app.start msg="NetDiag Tool started (data: C:\Newfolder\NetDiagTool-20261007T191005Z-1-001\NetDiagTool\publish\NetDiagTool-v1.2.0-win-x64\)."
-2026-10-29 12:24:53.116 [INFO] System app.stop msg="NetDiag Tool closing."
-2026-10-29 12:33:42.698 [INFO] System app.start msg="NetDiag Tool started (data: C:\Newfolder\NetDiagTool\NetDiagTool-v1.2.0-win-x64\)."
-2026-10-29 12:33:42.729 [INFO] System app.start msg="NetDiag Tool started (data: C:\Newfolder\NetDiagTool\NetDiagTool-v1.2.0-win-x64\)."
-2026-10-29 12:33:44.824 [INFO] System app.stop msg="NetDiag Tool closing."
-2026-10-29 12:33:46.136 [INFO] System app.stop msg="NetDiag Tool closing."

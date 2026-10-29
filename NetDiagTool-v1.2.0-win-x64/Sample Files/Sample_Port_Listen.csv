@@ -1,4 +1,0 @@
-Address,Port,ResponseEnabled,ResponseMessage,Encoding,Append
-0.0.0.0,2323,true,HELLO FROM NETDIAG,UTF-8,CRLF
-0.0.0.0,8080,false,,UTF-8,None
-127.0.0.1,9000,true,ACK FROM NETDIAG,ASCII,CRLF

@@ -1,6 +1,0 @@
-Name,Target,Port
-Google HTTPS,google.com,443
-Cloudflare DNS-TCP,1.1.1.1,53
-WEB01,192.168.1.20,443
-SQL01,192.168.1.30,1433
-TELNET01,192.168.1.40,23
