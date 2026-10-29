@@ -1,0 +1,4 @@
+Name,Target,Port,Message,Encoding,WaitForReply
+Local Listener,127.0.0.1,2323,HELLO,ASCII,true
+TELNET01,192.168.1.40,23,HELLO,ASCII,true
+WEB HEAD,example.com,80,HEAD / HTTP/1.0\r\n\r\n,ASCII,true
