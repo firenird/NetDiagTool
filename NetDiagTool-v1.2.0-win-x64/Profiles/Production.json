@@ -1,0 +1,21 @@
+{
+  "Id": "0f3c2a9e5b7d4c1a8e6f2b4d9c7a1e35",
+  "Name": "Production",
+  "Description": "Sample profile - edit the targets for your servers.",
+  "Enabled": false,
+  "IntervalSeconds": 60,
+  "TimeoutMs": 3000,
+  "Retries": 1,
+  "FailureThreshold": 3,
+  "RecoveryThreshold": 2,
+  "CooldownMinutes": 15,
+  "LatencyThresholdMs": 0,
+  "EmailAlerts": true,
+  "Recipients": "",
+  "Targets": [
+    { "Name": "Localhost", "Target": "127.0.0.1", "Type": "Ping", "Port": 0 },
+    { "Name": "Google DNS", "Target": "8.8.8.8", "Type": "Ping", "Port": 0 },
+    { "Name": "Cloudflare DNS", "Target": "1.1.1.1", "Type": "Tcp", "Port": 53 },
+    { "Name": "Google HTTPS", "Target": "google.com", "Type": "Tcp", "Port": 443 }
+  ]
+}
