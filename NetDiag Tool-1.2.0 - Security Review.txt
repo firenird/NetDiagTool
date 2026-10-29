@@ -1,0 +1,369 @@
+﻿                 NetDiag Tool-1.2.0 - Security Review  
+
+                
+
+              Summary  
+
+              NetDiag Tool v1.2 was built with security controls in six areas, and each control listed here exists in the  
+              source code and is covered by an automated test where one is named. This is a developer self-review of  
+              the design and code, not an independent audit or penetration test.  
+
+              Scope: the full v1.2 source —  NetDiagTool.Core (all network, monitoring, email, storage and CLI logic),  
+              NetDiagTool.ViewModels, the WPF GUI and NetDiagCli. The test suite (110 tests) runs on loopback only.  
+              All 110 pass on Linux; the latest Windows run you shared was an earlier build (102 of 103 passed, and  
+              the one failure was a test timeout since fixed).  
+
+              Overall posture: credentials are encrypted and never logged; the tool only reads system state and never  
+              changes other processes; untrusted input (CSV, network replies, backups, DNS responses) is bounded  
+              and validated; nothing leaves the machine except tests the user starts and email the user configures.  
+              The main residual risks are listed in the last section.  
+
+              Credential and secret protection  
+
+              The only secret the tool stores is the SMTP password, and it is never written anywhere in plain text.  
+
+                   •    Encrypted at rest with Windows DPAPI. The password is encrypted with CryptProtectData  
+                        (current-user scope, plus an app-specific entropy value) and saved in config.json as  
+                        dpapi:<base64>. Only the same Windows user on the same PC can decrypt it.  
+                   •    Plaintext is refused.  If config.json contains a password value without the dpapi: prefix, it is  
+                        cleared on load and the user is told to re-enter it.  
+                   •    No DPAPI, no saving. On a system without DPAPI the GUI refuses to store the password rather  
+                        than falling back to plain text.  
+                   •    Kept out of every other file.  Monitoring profiles, jobs, exports, reports and backups have no  
+                        password field. The diagnostics bundle removes both the encrypted password and the SMTP  
+                        username.  
+                   •    Never round-tripped in the UI. The password box pushes its value to the view model and is  
+                        cleared after save; the stored password is never read back into the screen.  
+                   •    Not accepted on the command line.  --password,  --pass,  --pwd,  --smtp-password,  --secret  
+                        and --token are rejected with exit code 2, because arguments are visible in process lists and  
+                        shell history.  
+                   •    Redacted from SMTP transcripts. The "Test SMTP Connection" transcript shows AUTH PLAIN  
+                        *** and *** (password) instead of the base64 credentials.  
+                   •    Clear failure on another PC. A password copied in a backup to a different user or machine fails  
+                        with a message to re-enter it, instead of a silent error.  
+
+              Logging and data privacy  
+
+              Everything the tool records stays on the local disk, and obvious secrets are masked before any line is  
+              written.  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                 NetDiag Tool-1.2.0 - Security Review  
+
+                
+              What the sanitizer masks (applied to log messages, errors, structured log fields, sent/received TCP  
+              payloads, email errors, CLI errors and error dialogs):  
+
+                Pattern                                                        Example in                   Written as  
+
+                Key/value secrets: password, passwd, pwd, pass,                password=Sup3r!               password=***  
+                secret, token, api key, access key, client secret  
+
+                HTTP authorization headers                                     Authorization:               Authorization: ***  
+                                                                               Basic dXNlcjpw  
+
+                Bearer / Basic tokens                                          Bearer abc.def.ghi            Bearer ***  
+
+                Protocol login commands: PASS, AUTH PLAIN /                    PASS mysecret                 PASS ***  
+                LOGIN / CRAM-MD5 / XOAUTH2  
+
+                DPAPI blobs                                                    dpapi:QUJD...                 dpapi:***  
+
+                   •    Payload logging can be turned off. Settings → "Log TCP payloads" stops custom-message and  
+                        listener data from being logged at all.  
+                   •    Retention.  Log folders older than 30 days and monitoring history older than 30 days are deleted  
+                        at startup (both configurable).  
+                   •    Diagnostics bundle is sanitized.  Every log line is passed through the sanitizer again, and the  
+                        config copy has the SMTP username and password removed.  
+                   •    No telemetry. The tool sends nothing to any vendor or cloud service and has no auto-update.  
+                        Network traffic happens only for tests the user starts, monitoring the user enables, and email to  
+                        the SMTP server the user configures.  
+                   •    Logging can't break a test. A full disk or locked log file is recorded as an internal error; the test  
+                        result is unaffected.  
+
+              Input validation and injection protection  
+
+              All input from files, the network and the user is validated before use, and every place where text  
+              becomes a command, a header, HTML or a file name is escaped or checked.  
+
+                Input / output         Risk                                Control  
+
+                CSV import             Huge or malformed files,            50 MB / 100,000-row limit; header check;  
+                                       bad rows                            unterminated quotes and duplicate columns  
+                                                                           rejected; each bad row reported by line number and  
+                                                                           skipped  
+
+                CSV export             Formula injection when              Cells starting with =, +,  - or @ (non-numeric) are  
+                                       opened in Excel                     prefixed with  '  
+
+                HTML reports           Script injection from target        Every value is HTML-encoded  
+                and alert emails       names or server replies  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                 NetDiag Tool-1.2.0 - Security Review  
+
+                
+                Input / output          Risk                                Control  
+
+                Email headers           CR/LF injection adding              Control characters stripped from Subject, display  
+                and recipients          headers or SMTP                     name and attachment names; addresses with CR/LF,  
+                                        commands                            spaces, <, >, ,,  ; or quotes are rejected before  
+                                                                            connecting (found and fixed during this review)  
+
+                Hostnames, IPs,         Invalid targets, command            RFC hostname/IP check; ports 1-65535; DNS servers  
+                ports                   arguments                           must be IP addresses; encodings limited to UTF-8  
+                                                                            and ASCII  
+
+                tracert.exe            Argument or path injection           Target validated before the process starts; started  
+                                                                            by full path from System32 with no shell  
+
+                Windows Task            Command injection                   schtasks.exe run by full path with separate  
+                Scheduler              through job names                    arguments (no shell); quotes banned in job names;  
+                                                                            command-length limit enforced  
+
+                Profile / job           Path traversal                      Names are converted to safe file names (path  
+                names                                                       separators and invalid characters removed)  
+
+                config.json,            Corrupt or hostile values           Typed JSON only; out-of-range values clamped with  
+                profiles, jobs                                              a warning; a corrupt config is kept aside and  
+                                                                            defaults loaded; profiles and jobs validated before  
+                                                                            save and on import  
+
+               Network and listener safety  
+
+               Every network operation has a timeout, a size limit and a cancel path, so a slow or hostile peer cannot  
+              hang or exhaust the tool.  
+
+              Port listeners (the only feature that accepts inbound connections)  
+
+                   •    At most 100 concurrent connections per listener; extra clients are refused and logged.  
+                   •    Received data is capped at 64 KB per read cycle, and a client that sends nothing is closed after  
+                        the receive timeout (default 5 s).  
+                   •    On Windows the port is bound with exclusive address use, so another program cannot share or  
+                        take over the port, and "Port already in use" is reported clearly.  
+                   •    Duplicate listeners inside NetDiag are blocked; ports below 1024 trigger a warning.  
+                   •    The listen address is the user's choice: 127.0.0.1  keeps a listener local-only, 0.0.0.0 exposes it  
+                        to the network.  
+                   •    All listeners and their client connections are stopped and disposed of when the app closes.  
+
+              Outbound tests and replies  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                 NetDiag Tool-1.2.0 - Security Review  
+
+                
+                   •    Custom TCP message replies are capped at 64 KB; a reply is never invented when the server  
+                        sends nothing; Telnet negotiation bytes are stripped, and control characters are shown escaped.  
+                   •    tracert has a hard time limit and is killed on cancel or app exit.  
+                   •    Bulk concurrency is limited to 1-200 (trace 1-20).  
+
+              SMTP  
+
+                   •    Server certificates are validated by default.  
+                   •    In STARTTLS mode the connection fails if the server does not offer STARTTLS, so it never silently  
+                        falls back to plain text.  
+                   •    "Accept invalid certificates" exists for internal servers with self-signed certificates; it is off by  
+                        default.  
+                   •    SMTP failures are queued, retried twice and logged; they never stop monitoring or mark a  
+                        network test as failed.  
+
+               DNS client (raw queries to chosen servers)  
+
+                   •    A response must carry the matching transaction ID and the response flag; every field is bounds- 
+                        checked; name-compression loops stop after 20 jumps.  
+                   •    Query times are measured; on timeout no time is reported.  
+
+               Process and OS interaction  
+
+              The tool runs with the user's normal rights and only reads system state; it never changes another  
+               process, a connection or a Windows setting on its own.  
+
+                   •    No administrator rights. The manifest requests asInvoker. Admin is needed only if Windows  
+                        itself requires it for a specific reserved port.  
+                   •    Least-privilege process queries.  Port Monitor and process details open other processes with  
+                        PROCESS_QUERY_LIMITED_INFORMATION only (path, command line, parent, user). Access denied  
+                        or a process exiting mid-query just leaves a field empty.  
+                   •    Read-only Port Monitor.  It lists TCP/UDP endpoints through GetExtendedTcpTable /  
+                        GetExtendedUdpTable. It does not close connections or end processes; it links to Task Manager  
+                        and Resource Monitor, where the user acts with Windows' own controls.  
+                   •    Signature check without network calls. The Authenticode check uses WinVerifyTrust with  
+                        cache-only URL retrieval and no revocation lookup, so selecting a row never triggers outbound  
+                        traffic.  
+                   •    Child processes by full path, no shell. tracert.exe and schtasks.exe are started from  
+                        %SystemRoot%\System32 with a hidden window, which avoids picking up a planted copy from  
+                        the working folder or PATH.  
+                   •    Scheduled tasks run as the current user. "Create Windows task" registers NetDiagCli.exe job  
+                        run <name> for the signed-in user, without elevation, and only after the user confirms the exact  
+                        command.  
+                   •    Crash handling. Unhandled UI errors are logged and shown with secrets masked; the app keeps  
+                        running.  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                 NetDiag Tool-1.2.0 - Security Review  
+
+                
+              Backup, restore and file handling  
+
+              A backup file is treated as untrusted input: restore only accepts NetDiag's own files and can never write  
+              outside the data folder.  
+
+                   •    Zip-slip protection.  Every entry's final path is resolved and must sit inside the NetDiag data  
+                        folder; entries like Data/../../file are skipped.  
+                   •    Allow-list. Only config.json, Profiles/, Jobs/ and Data/ are restored; anything else in the  
+                        ZIP is ignored.  
+                   •    Manifest required. A ZIP without a NetDiag manifest.json is rejected as "not a NetDiag  
+                        backup".  
+                   •    Config validated before writing. A restored config.json goes through the same validation and  
+                        clamping as a normal load.  
+                   •    Safety backup first. The current state is backed up automatically before any  restoration.  
+                   •    Atomic writes. config.json, profiles, jobs and incidents are written to a temp file and then  
+                        swapped in, so a crash never leaves a half-written file.  
+                   •    Portable data location. All data stays next to the EXE; if that folder is read-only, the tool uses  
+                        %LOCALAPPDATA%\NetDiagTool instead of failing. Nothing is written to the registry.  
+
+              Capabilities deliberately excluded  
+
+              The build spec's Security / Safety section ruled out the following, and none of them exist in the code:  
+
+                   •    Credential harvesting — the listener shows what clients send for troubleshooting but have  no  
+                        login prompts or credential capture.  
+                   •    Exploitation or vulnerability scanning.  
+                   •    Packet capture or traffic interception — the tool only sees its own sockets and the OS  
+                        connection tables.  
+                   •    Offensive scanning automation —  bulk tests run only against targets the user lists, with bounded  
+                        concurrency.  
+                   •    Process termination and closing other programs' connections —  Port Monitor stays read-only.  
+                   •    Telemetry, cloud services, remote agents or auto-update.  
+
+              Verification  
+
+              Each control below is checked by an automated test in tests/NetDiagTool.Tests; run it with dotnet  
+              run -c Release --project tests/NetDiagTool.Tests (110 tests, loopback only).  
+
+                Control                 Test(s)                                                What the test proves  
+
+                DPAPI password           DpapiRoundTripOnWindows,                              Encrypt/decrypt works; config.json  
+                storage                 ShellBuildsAllPagesAndCommandsWork                     contains dpapi: and not the typed  
+                                                                                               password  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                NetDiag Tool-1.2.0 - Security Review  
+
+                
+                Control                 Test(s)                                                What the test proves  
+
+                Plaintext               PlaintextPasswordIsRejected                           A non-DPAPI value is cleared on  
+                password                                                                       load  
+                rejected  
+
+                CLI refuses             RejectsSecretsAndMissingValues                         --password exits with code 2  
+                secrets  
+
+                SMTP transcript         SendsMultipartWithAttachmentAndAuth,                   Neither the password nor the AUTH  
+                redaction               AuthFailureGivesHint                                  token appears in transcript or error  
+
+                Bcc privacy             SendsMultipartWithAttachmentAndAuth                    Bcc address is sent to the server  
+                                                                                               but not written in headers  
+
+                STARTTLS no             StartTlsRequiredButNotOffered                          Connection fails when STARTTLS is  
+                downgrade                                                                      missing  
+
+                Log sanitizer           SanitizerMasksSecrets,                                 Patterns are masked; secrets never  
+                                        LoggingNeverWritesSecrets                              reach log files  
+
+                Bundle has no           DiagnosticsBundleContainsFilesAndNoSecr                Password, encrypted blob and  
+                secrets                 ets                                                    username absent from the ZIP  
+
+                Email header /          HeadersAndAddressesCannotInject,                       CR/LF cannot add headers or SMTP  
+                address injection       SendRejectsUnsafeRecipientBeforeConnec                 commands  
+                                        ting  
+
+                HTML encoding           HtmlCsvJsonGeneration                                  <script> in a target name is  
+                                                                                               encoded  
+
+                CSV formula             WriterEscapesAndRoundTrips,                            =cmd() exported as  '=cmd();  
+                guard and parser        UnterminatedQuoteIsReported,                           malformed files rejected  
+                limits                  DuplicateHeaderRejected, LargeFileIsSafe  
+
+                Zip-slip and            BackupRestoreRoundTripWithZipSlipGuard                 ../ entry not written outside the  
+                backup checks                                                                 folder; non-NetDiag ZIP rejected  
+
+                Port already in         PortAlreadyInUseByAnotherApp,                          Clear error; duplicates refused  
+                use / duplicates        ValidatesPortsAndDuplicates  
+
+                Listener timeouts       ReceiveTimeoutDoesNotBlockListener,                    Silent clients closed; stop never  
+                and cleanup             StopClosesActiveClientsAndCancels                      hangs  
+
+                No fabricated           ReplyTimeoutAndEmptyResponseNeverFa                    Empty reply stays empty; no time  
+                replies or timings      bricated,                                              on DNS timeout  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                NetDiag Tool-1.2.0 - Security Review  
+
+                
+                Control                 Test(s)                                               What the test proves  
+
+                                        UnreachableServerTimesOutWithoutInven 
+                                        tingTime  
+
+                DNS parser              NxDomainAndIdMismatch,                                Wrong ID and short packets  
+                robustness              QueryBuildAndResponseParseWithCompre                   rejected  
+                                        ssion  
+
+                SMTP failure            SmtpFailureNeverStopsMonitoring,                       Monitoring keeps running; enqueue  
+                isolation               QueueDoesNotBlockAndLogsFailures                       never blocks  
+
+                Corrupt config          CorruptFileIsKeptAndDefaultsUsed,                      Bad file kept aside; values clamped  
+                handling                ClampsInvalidValuesAndWarns  
+
+              Known limitations and recommendations  
+
+              These residual risks remain; most are handled by how the tool is deployed rather than by more code.  
+
+                Risk                 Why it matters                                   Recommendation  
+
+                Logs, history        They hold hostnames, IPs, process                Keep the NetDiag folder in a location only  
+                and reports are      names and, if enabled, TCP payloads             admins/you can read; turn off payload  
+                not encrypted                                                        logging on shared PCs  
+
+                Secret masking       A secret in an unusual format (for               Don't send real credentials through the  
+                is pattern-          example a password typed as a                   custom message feature; disable payload  
+                based                custom TCP message without a                    logging when testing logins  
+                                     keyword) is logged as-is  
+
+                Jobs and             Anyone who can write to Jobs\ can                Use Task Scheduler integration only when  
+                profiles are         change what a scheduled task runs as            the folder's write access is restricted  
+                plain JSON           your user  
+
+                "Accept invalid      Turns off SMTP server certificate                Leave it off; enable only for an internal  
+                certificates"        checks                                          server with a self-signed certificate  
+
+                No certificate       Neither SMTP TLS nor the file-                  Treat "Valid" as "signed and unmodified",  
+                revocation           signature check queries revocation              not "publisher in good standing"  
+                checks               lists (by design, to avoid network  
+                                     calls)  
+
+                Catalog-signed       Many system binaries show "No                    Use the file Properties dialog or sigcheck  
+                Windows files        embedded signature" even though                 for those  
+                                     Windows trusts them  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
+﻿                  NetDiag Tool-1.2.0 - Security Review  
+
+                  
+                  Risk                   Why it matters                                        Recommendation  
+
+                  Listener on            Opens a port to the network while                     Use 127.0.0.1 for local tests; stop  
+                 0.0.0.0                  running                                              listeners when done  
+
+                 The EXE is not          SmartScreen warnings; users can't                     Sign NetDiagTool.exe and  
+                 code-signed             verify the publisher                                  NetDiagCli.exe with your organization's  
+                                                                                               certificate before distributing  
+
+                  No                     This is a developer self-review                       Run a static analyzer (e.g. Roslyn security  
+                 independent                                                                   analyzers) and a peer review before wider  
+                  review                                                                       rollout  
+
+                  
+
+Umair Ahmed & Fasih ullah  | TRAFIX LLC   
